@@ -1,0 +1,38 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp(ql:quickload '() :silent t)
+  )
+
+(defpackage :ros.script.bf.3812712959
+  (:use :cl))
+(in-package :ros.script.bf.3812712959)
+
+(defparameter *Memory* (make-array 30000 :initial-element 0))
+(defparameter *Pointer* 0)
+(defparameter c nil)
+
+(defun parser (str m p)
+  (case str
+    (#\>  (setf p (1+ p)))
+    (#\<  (setf p (1- p)))
+    (#\+  (setf (aref m p) (1+ (aref m p))))
+    (#\-  (setf (aref m p) (1- (aref m p))))
+    (#\.  (format t "~c" (code-char (aref m p))))
+    (#\,  (read-char))
+    (#\[ nil)
+    (#\] nil)
+    (otherwise nil) ))
+
+(defun main (&rest argv)
+  (declare (ignorable argv))
+  (when (= 1 (length argv)) 
+    (with-open-file (in (car argv) :direction :input) 
+      (loop for i from 0
+            while (setf c (read-char in nil)) 
+            do (parser c *Memory* *Pointer*) ))))
+;;; vim: set ft=lisp lisp:
