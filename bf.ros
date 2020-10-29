@@ -14,25 +14,53 @@ exec ros -Q -- $0 "$@"
 
 (defparameter *Memory* (make-array 30000 :initial-element 0))
 (defparameter *Pointer* 0)
+(defparameter *Pos-num* 0)
 (defparameter c nil)
 
-(defun parser (str m p)
-  (case str
-    (#\>  (setf p (1+ p)))
-    (#\<  (setf p (1- p)))
-    (#\+  (setf (aref m p) (1+ (aref m p))))
-    (#\-  (setf (aref m p) (1- (aref m p))))
-    (#\.  (format t "~c" (code-char (aref m p))))
-    (#\,  (read-char))
-    (#\[ nil)
-    (#\] nil)
-    (otherwise nil) ))
+(defun parser (func-pos lis full-lis m p )
+  (case (car lis)
+    (#\>  (setf p (1+ p)) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\<  (setf p (1- p)) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\+  (setf (aref m p) (1+ (aref m p))) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\-  (setf (aref m p) (1- (aref m p))) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\.  (format t "~c" (code-char (aref m p))) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\,  (read-char) 
+          (parser func-pos (cdr lis) full-lis m p))
+    (#\[  (if (= 0 (aref m p))
+              (progn 
+                     (parser func-pos (subseq lis (position #\] lis)) full-lis m p))
+              (parser func-pos (cdr lis) full-lis m p)))
+    (#\]  (let ((pos (funcall func-pos #\[ full-lis)) )
+            (if (= 0 (aref m p))
+                (progn 
+                  (incf *Pos-num*)
+                  (parser func-pos (cdr lis) full-lis m p))
+                (parser func-pos (subseq full-lis (nth *Pos-num* pos)) full-lis m p)) ))
+    (otherwise nil (if (= 1 (length lis))
+                       nil
+                       (parser func-pos (cdr lis) full-lis m p))) ))
+
+(defun position-lis (data lis)
+  (let ((d 0) )
+    (loop for i
+          in lis
+          if (eql data i)
+            collect d 
+          do (incf d))))
+
+(position-lis #\[ '(#\+ #\[ #\- #\[ #\[ #\-))
 
 (defun main (&rest argv)
   (declare (ignorable argv))
   (when (= 1 (length argv)) 
     (with-open-file (in (car argv) :direction :input) 
-      (loop for i from 0
-            while (setf c (read-char in nil)) 
-            do (parser c *Memory* *Pointer*) ))))
+      (let ((siki (loop for i from 0
+                        while (setf c (read-char in nil)) 
+                        collect c)) ) 
+        (parser #'position-lis siki siki *Memory* *Pointer* )))))
 ;;; vim: set ft=lisp lisp:
